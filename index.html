@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador de Relatórios</title>
+
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --card: #12172a;
+      --primary: #4f7cff;
+      --secondary: #22c55e;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2545;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b245a, transparent), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 22px;
+      margin: 0;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+
+    .step {
+      display: none;
+      animation: fade 0.4s ease;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: linear-gradient(180deg, #141a38, var(--card));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 18px;
+    }
+
+    .upload {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .upload:hover {
+      border-color: var(--primary);
+      background: rgba(79,124,255,0.05);
+    }
+
+    .upload input {
+      display: none;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    select, input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #0f1530;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--primary), #6ea8ff);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📊 Gerador de Relatórios</h1>
+  <span style="color:var(--muted); font-size:14px">Sistema interno</span>
+</header>
+
+<main>
+
+  <!-- STEP 1 -->
+  <div class="step active" id="step1">
+    <div class="card">
+      <h2>1️⃣ Envie a planilha de controle</h2>
+      <label class="upload">
+        <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        <strong>Clique para selecionar a planilha</strong>
+        <p style="color:var(--muted); font-size:14px">Excel pesado de controle</p>
+      </label>
+      <div class="actions">
+        <div></div>
+        <button onclick="nextStep(2)">Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" id="step2">
+    <div class="card">
+      <h2>2️⃣ Escolha o fornecedor</h2>
+      <label>Fornecedor</label>
+      <select id="fornecedor">
+        <option value="">Selecione</option>
+        <option>Fornecedor A</option>
+        <option>Fornecedor B</option>
+        <option>Fornecedor C</option>
+      </select>
+      <div class="actions">
+        <button onclick="nextStep(1)">Voltar</button>
+        <button onclick="nextStep(3)">Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" id="step3">
+    <div class="card">
+      <h2>3️⃣ Filtros do relatório</h2>
+
+      <label>Filiais</label>
+      <select multiple>
+        <option>SP</option>
+        <option>RJ</option>
+        <option>MG</option>
+      </select>
+
+      <label>Mês</label>
+      <input type="month" />
+
+      <label>Dias (opcional)</label>
+      <input placeholder="Ex: 1-10 ou 5,12,20" />
+
+      <div class="actions">
+        <button onclick="nextStep(2)">Voltar</button>
+        <button onclick="nextStep(4)">Gerar relatório</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step" id="step4">
+    <div class="card">
+      <h2>📄 Relatório</h2>
+      <p style="color:var(--secondary)">✔ Processamento iniciado com sucesso</p>
+      <p style="color:var(--muted)">Quando o backend finalizar, o arquivo ficará disponível para download.</p>
+      <button style="margin-top:12px">Baixar relatório</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Ferramenta interna • Automação de relatórios
+</footer>
+
+<script>
+  function nextStep(step) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step${step}`).classList.add('active');
+  }
+
+  // Enviar arquivo para o backend
+  document.getElementById('fileInput').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch('https://gerador-relatorios-xoqv.onrender.com/upload', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log(data);
+      nextStep(2); // Passa para a próxima etapa após o upload
+    })
+    .catch(error => {
+      console.error("Erro:", error);
+    });
+  });
+
+  // Enviar dados de filtros para o backend
+  const fornecedor = document.getElementById('fornecedor').value;
+  const filiais = [...document.querySelectorAll('select[multiple] option:checked')].map(option => option.value);
+  const mes = document.querySelector('input[type="month"]').value;
+  const dias = document.querySelector('input[placeholder]').value;
+
+  const requestData = { fornecedor, filiais, mes, dias };
+
+  fetch('https://gerador-relatorios-xoqv.onrender.com/processar-relatorio', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log(data);
+    nextStep(4); // Passa para a etapa 4 quando o relatório for processado
+  })
+  .catch(error => {
+    console.error("Erro:", error);
+  });
+
+  // Baixar relatório gerado
+  document.querySelector('button').addEventListener('click', function() {
+    fetch('https://gerador-relatorios-xoqv.onrender.com/baixar-relatorio')
+      .then(response => response.blob())
+      .then(blob => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'relatorio_gerado.txt'; // Nome do arquivo
+        link.click();
+      })
+      .catch(error => {
+        console.error("Erro ao baixar:", error);
+      });
+  });
+</script>
+
+</body>
+</html>
