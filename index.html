@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gerador de Relatórios</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="topbar">
+      <div>
+        <h1>Gerador de Relatórios</h1>
+        <p>Upload → filtros → gerar.</p>
+      </div>
+
+      <div class="statusPill" id="statusBox" title="Status do backend">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Checando…</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="row">
+        <div class="field">
+          <label>Backend</label>
+          <input id="apiBase" type="url" spellcheck="false" />
+        </div>
+
+        <div class="actions">
+          <button class="btn ghost" id="btnHealth">Testar</button>
+          <button class="btn ghost" id="btnReset">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <!-- Upload -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>1) Upload</h2>
+          <span class="chip" id="uploadChip">Sem arquivo</span>
+        </div>
+
+        <div class="field">
+          <label>Planilha</label>
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" />
+        </div>
+
+        <button class="btn" id="btnUpload">Enviar</button>
+
+        <div class="mini">
+          <div class="miniRow">
+            <span>upload_id</span>
+            <code id="uploadId">—</code>
+          </div>
+          <div class="miniRow">
+            <span>arquivo</span>
+            <code id="uploadName">—</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Opções -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>2) Filtros</h2>
+          <button class="btn ghost" id="btnOptions">Buscar</button>
+        </div>
+
+        <div id="optionsArea" class="optionsArea">
+          <div class="empty">
+            Faça upload e clique em <b>Buscar</b>.
+          </div>
+        </div>
+      </section>
+
+      <!-- Gerar -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>3) Gerar</h2>
+          <button class="btn" id="btnGerar">Gerar & Baixar</button>
+        </div>
+
+        <details class="details">
+          <summary>Ver logs</summary>
+          <div class="log">
+            <div class="logHead">
+              <span>Logs</span>
+              <button class="btn tiny ghost" id="btnClearLog">Limpar</button>
+            </div>
+            <pre id="log"></pre>
+          </div>
+        </details>
+
+        <div class="hint">
+          Dica: seu Swagger fica em <code>/docs</code>.
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      Front estático (GitHub Pages) • Backend (Railway)
+    </footer>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
