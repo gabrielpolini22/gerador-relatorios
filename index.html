@@ -2,108 +2,913 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Gerador de Relatórios</title>
-  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B1020;
+      --card:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.08);
+      --border:rgba(148,163,184,.18);
+      --text:#EAF0FF;
+      --muted:rgba(234,240,255,.7);
+      --muted2:rgba(234,240,255,.55);
+      --shadow:0 18px 60px rgba(0,0,0,.55);
+      --radius:18px;
+
+      --accent:#7C3AED;
+      --accent2:#22C55E;
+      --bad:#EF4444;
+
+      --ring:0 0 0 3px rgba(124,58,237,.18);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1000px 500px at 15% 20%, rgba(124,58,237,.20), transparent 60%),
+        radial-gradient(900px 500px at 85% 25%, rgba(34,197,94,.14), transparent 60%),
+        radial-gradient(900px 600px at 60% 95%, rgba(56,189,248,.10), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    .wrap{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 34px 18px 30px;
+    }
+
+    header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom: 18px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    h1{
+      margin:0;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing:.3px;
+      line-height:1.1;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      padding:10px 12px;
+      border-radius:999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      min-width: 210px;
+      justify-content:space-between;
+    }
+    .pillLeft{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+    }
+
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: rgba(148,163,184,.55);
+      box-shadow: 0 0 0 4px rgba(148,163,184,.12);
+      flex:0 0 auto;
+    }
+
+    .pill span{
+      color:var(--muted);
+      font-size:13px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 170px;
+    }
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1.6fr .4fr;
+      gap:12px;
+      padding:14px;
+      align-items:end;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-width:0;
+    }
+    .field label{
+      color:var(--muted);
+      font-size:12px;
+      letter-spacing:.25px;
+    }
+
+    .input{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius: 14px;
+      padding:10px 12px;
+      min-width:0;
+    }
+    .input input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      color:var(--text);
+      font-size:14px;
+      min-width:0;
+    }
+    .input input::placeholder{ color: rgba(234,240,255,.4); }
+
+    .btns{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius: 14px;
+      padding:10px 12px;
+      font-weight:600;
+      font-size:13px;
+      transition: transform .06s ease, filter .15s ease, background .2s ease, border-color .2s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(148,163,184,.20);
+      white-space:nowrap;
+    }
+
+    button:hover{ filter: brightness(1.08); }
+    button:active{ transform: translateY(1px); }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .btnPrimary{
+      background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(124,58,237,.65));
+      border-color: rgba(124,58,237,.45);
+    }
+    .btnGhost{
+      background: rgba(255,255,255,.03);
+    }
+    .btnGood{
+      background: linear-gradient(135deg, rgba(34,197,94,.95), rgba(34,197,94,.55));
+      border-color: rgba(34,197,94,.45);
+    }
+
+    .grid3{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:14px;
+      padding:14px;
+    }
+
+    @media (max-width: 980px){
+      .row{ grid-template-columns: 1fr; }
+      .grid3{ grid-template-columns: 1fr; }
+      .pill{ min-width: 160px; }
+    }
+
+    .panel{
+      padding:14px;
+      min-height: 260px;
+    }
+
+    .panelTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+    .panelTitle h2{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+    }
+    .step{
+      color:var(--muted2);
+      font-size:12px;
+      border:1px solid rgba(148,163,184,.18);
+      background: rgba(255,255,255,.04);
+      padding:6px 10px;
+      border-radius:999px;
+      white-space:nowrap;
+    }
+
+    .mini{
+      color:var(--muted2);
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    .kv{
+      display:grid;
+      gap:10px;
+      margin-top: 12px;
+    }
+    .kvRow{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(148,163,184,.16);
+      border-radius: 14px;
+      padding:10px 12px;
+      color: var(--muted);
+      font-size:12px;
+    }
+    .kvRow b{
+      color:var(--text);
+      font-weight:600;
+      font-size:12px;
+    }
+
+    .fileRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top: 8px;
+    }
+
+    input[type="file"]{
+      width:100%;
+      color:var(--muted);
+      font-size:13px;
+      background: rgba(0,0,0,.22);
+      border:1px dashed rgba(148,163,184,.28);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+
+    .optionsBox{
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(148,163,184,.16);
+      border-radius: 14px;
+      padding:12px;
+    }
+
+    .optionGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 980px){
+      .optionGrid{ grid-template-columns: 1fr; }
+    }
+
+    .optField{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      background: rgba(255,255,255,.03);
+      border:1px solid rgba(148,163,184,.14);
+      border-radius: 14px;
+      padding:10px 10px;
+    }
+    .optField label{
+      font-size:12px;
+      color: var(--muted);
+    }
+    .optField select,
+    .optField input{
+      width:100%;
+      border-radius: 12px;
+      border:1px solid rgba(148,163,184,.18);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      outline:none;
+      padding:10px 10px;
+      font-size:13px;
+    }
+    .optField select:focus,
+    .optField input:focus{
+      box-shadow: var(--ring);
+      border-color: rgba(124,58,237,.35);
+    }
+    .optField small{
+      color: rgba(234,240,255,.55);
+      font-size:11px;
+      line-height:1.35;
+    }
+
+    .empty{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      border:1px dashed rgba(148,163,184,.22);
+      background: rgba(0,0,0,.16);
+      border-radius: 14px;
+      padding:12px;
+      color: var(--muted);
+      font-size:13px;
+    }
+    .empty .icon{
+      width:34px; height:34px;
+      display:grid; place-items:center;
+      border-radius: 12px;
+      background: rgba(124,58,237,.12);
+      border:1px solid rgba(124,58,237,.20);
+      flex:0 0 auto;
+    }
+
+    details{
+      margin-top: 10px;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid rgba(148,163,184,.14);
+      background: rgba(0,0,0,.16);
+    }
+    summary{
+      cursor:pointer;
+      list-style:none;
+      padding:10px 12px;
+      font-size:13px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    summary::-webkit-details-marker{ display:none; }
+    .log{
+      padding:10px 12px 14px;
+      color: rgba(234,240,255,.80);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      max-height: 240px;
+      overflow:auto;
+      border-top:1px solid rgba(148,163,184,.12);
+    }
+
+    footer{
+      padding: 0 14px 14px;
+      color: rgba(234,240,255,.55);
+      font-size: 12px;
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    a{
+      color: rgba(234,240,255,.8);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(234,240,255,.25);
+    }
+    a:hover{ color: #fff; border-bottom-color: rgba(255,255,255,.45); }
+    code{
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: rgba(234,240,255,.85);
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(148,163,184,.12);
+      padding:2px 6px;
+      border-radius: 8px;
+    }
+  </style>
 </head>
+
 <body>
-  <main class="container">
-    <header class="topbar">
-      <div>
+  <div class="wrap">
+    <header>
+      <div class="title">
         <h1>Gerador de Relatórios</h1>
-        <p>Upload → filtros → gerar.</p>
+        <div class="subtitle">Upload → buscar opções → gerar & baixar.</div>
       </div>
 
-      <div class="statusPill" id="statusBox" title="Status do backend">
-        <span class="dot" id="statusDot"></span>
-        <span id="statusText">Checando…</span>
+      <div class="pill" title="Status do backend">
+        <div class="pillLeft">
+          <div class="dot" id="statusDot"></div>
+          <span id="statusText">Checando…</span>
+        </div>
       </div>
     </header>
 
-    <section class="panel">
+    <!-- Backend -->
+    <div class="card">
       <div class="row">
         <div class="field">
-          <label>Backend</label>
-          <input id="apiBase" type="url" spellcheck="false" />
+          <label for="apiBase">Backend (URL base)</label>
+          <div class="input">
+            <input id="apiBase" type="text" placeholder="https://sua-api.app" />
+          </div>
         </div>
 
-        <div class="actions">
-          <button class="btn ghost" id="btnHealth">Testar</button>
-          <button class="btn ghost" id="btnReset">Reset</button>
+        <div class="btns">
+          <button id="btnHealth" class="btnGood" type="button">✅ Testar</button>
+          <button id="btnReset" class="btnGhost" type="button">↩️ Reset</button>
         </div>
       </div>
-    </section>
 
-    <section class="grid">
-      <!-- Upload -->
-      <section class="card">
-        <div class="cardHead">
-          <h2>1) Upload</h2>
-          <span class="chip" id="uploadChip">Sem arquivo</span>
-        </div>
-
-        <div class="field">
-          <label>Planilha</label>
-          <input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" />
-        </div>
-
-        <button class="btn" id="btnUpload">Enviar</button>
-
-        <div class="mini">
-          <div class="miniRow">
-            <span>upload_id</span>
-            <code id="uploadId">—</code>
-          </div>
-          <div class="miniRow">
-            <span>arquivo</span>
-            <code id="uploadName">—</code>
-          </div>
-        </div>
-      </section>
-
-      <!-- Opções -->
-      <section class="card">
-        <div class="cardHead">
-          <h2>2) Filtros</h2>
-          <button class="btn ghost" id="btnOptions">Buscar</button>
-        </div>
-
-        <div id="optionsArea" class="optionsArea">
-          <div class="empty">
-            Faça upload e clique em <b>Buscar</b>.
-          </div>
-        </div>
-      </section>
-
-      <!-- Gerar -->
-      <section class="card">
-        <div class="cardHead">
-          <h2>3) Gerar</h2>
-          <button class="btn" id="btnGerar">Gerar & Baixar</button>
-        </div>
-
-        <details class="details">
-          <summary>Ver logs</summary>
-          <div class="log">
-            <div class="logHead">
-              <span>Logs</span>
-              <button class="btn tiny ghost" id="btnClearLog">Limpar</button>
+      <!-- Steps -->
+      <div class="grid3">
+        <!-- Upload -->
+        <div class="card">
+          <div class="panel">
+            <div class="panelTitle">
+              <h2>1) Upload</h2>
+              <div class="step">POST <code>/upload</code></div>
             </div>
-            <pre id="log"></pre>
+
+            <div class="mini">Selecione a planilha e envie para obter o <code>upload_id</code>.</div>
+
+            <div class="fileRow">
+              <input id="fileInput" type="file" />
+              <button id="btnUpload" class="btnPrimary" type="button">⬆️ Enviar</button>
+            </div>
+
+            <div class="kv">
+              <div class="kvRow"><span>upload_id</span><b id="uploadId">—</b></div>
+              <div class="kvRow"><span>arquivo</span><b id="uploadName">—</b></div>
+            </div>
           </div>
-        </details>
-
-        <div class="hint">
-          Dica: seu Swagger fica em <code>/docs</code>.
         </div>
-      </section>
-    </section>
 
-    <footer class="footer">
-      Front estático (GitHub Pages) • Backend (Railway)
-    </footer>
-  </main>
+        <!-- Options -->
+        <div class="card">
+          <div class="panel">
+            <div class="panelTitle">
+              <h2>2) Filtros</h2>
+              <div class="step">GET <code>/faturamento/options</code></div>
+            </div>
 
-  <script src="./app.js"></script>
+            <div class="btns" style="margin-bottom:10px; justify-content:flex-start;">
+              <button id="btnOptions" type="button">🔎 Buscar opções</button>
+            </div>
+
+            <div id="optionsArea">
+              <div class="empty">
+                <div class="icon">⚙️</div>
+                <div>
+                  <b>Nenhuma opção carregada ainda.</b>
+                  <div class="mini">Faça o upload e clique em “Buscar opções”.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generate -->
+        <div class="card">
+          <div class="panel">
+            <div class="panelTitle">
+              <h2>3) Gerar</h2>
+              <div class="step">POST <code>/faturamento/gerar</code></div>
+            </div>
+
+            <div class="mini">Gera o relatório com os filtros selecionados e baixa o arquivo.</div>
+
+            <div class="btns" style="margin-top:12px; justify-content:flex-start;">
+              <button id="btnGerar" class="btnPrimary" type="button">⚡ Gerar & Baixar</button>
+              <button id="btnClearLog" class="btnGhost" type="button">🧹 Limpar logs</button>
+            </div>
+
+            <details>
+              <summary>
+                <span>📄 Ver logs</span>
+                <span style="color:rgba(234,240,255,.45)">▼</span>
+              </summary>
+              <div class="log" id="log"></div>
+            </details>
+
+            <div class="mini" style="margin-top:10px">
+              Dica: seu Swagger fica em <code>/docs</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div>Front estático (GitHub Pages) • Backend (Railway)</div>
+        <div>
+          <a href="#" id="openSwagger">Abrir Swagger</a>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_API = "https://gerador-relatorios-production-eca0.up.railway.app";
+
+    const el = (id) => document.getElementById(id);
+
+    const apiBaseEl = el("apiBase");
+    const fileInput = el("fileInput");
+
+    const btnHealth = el("btnHealth");
+    const btnUpload = el("btnUpload");
+    const btnOptions = el("btnOptions");
+    const btnGerar = el("btnGerar");
+    const btnReset = el("btnReset");
+    const btnClearLog = el("btnClearLog");
+
+    const statusDot = el("statusDot");
+    const statusText = el("statusText");
+
+    const uploadIdEl = el("uploadId");
+    const uploadNameEl = el("uploadName");
+    const optionsArea = el("optionsArea");
+    const logEl = el("log");
+    const openSwagger = el("openSwagger");
+
+    let state = {
+      upload_id: null,
+      options: null,
+      selections: {},
+    };
+
+    function log(msg, obj) {
+      const ts = new Date().toLocaleString();
+      let line = `[${ts}] ${msg}`;
+      if (obj !== undefined) {
+        try { line += "\\n" + JSON.stringify(obj, null, 2); }
+        catch { line += "\\n" + String(obj); }
+      }
+      logEl.textContent = (line + "\\n\\n" + logEl.textContent).slice(0, 14000);
+    }
+
+    function setStatus(ok, text) {
+      statusDot.style.background = ok ? "var(--accent2)" : "var(--bad)";
+      statusDot.style.boxShadow = ok
+        ? "0 0 0 4px rgba(34,197,94,.18)"
+        : "0 0 0 4px rgba(239,68,68,.18)";
+      statusText.textContent = text;
+    }
+
+    function apiUrl(path) {
+      const base = (apiBaseEl.value || "").trim().replace(/\\/+$/, "");
+      return `${base}${path}`;
+    }
+
+    async function fetchWithTimeout(url, opts = {}, timeoutMs = 60000) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        return res;
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    async function healthCheck() {
+      try {
+        setStatus(true, "Checando…");
+        const res = await fetchWithTimeout(apiUrl("/health"), {}, 20000);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setStatus(false, `Falhou (${res.status})`);
+          log("Health FAIL", { status: res.status, data });
+          return;
+        }
+        setStatus(true, data?.status === "ok" ? "Online (health ok)" : "Online");
+        log("Health OK", data);
+      } catch (e) {
+        setStatus(false, "Offline / erro");
+        log("Health ERROR", { error: String(e) });
+      }
+    }
+
+    function resetAll() {
+      state = { upload_id: null, options: null, selections: {} };
+      uploadIdEl.textContent = "—";
+      uploadNameEl.textContent = "—";
+      optionsArea.innerHTML = `
+        <div class="empty">
+          <div class="icon">⚙️</div>
+          <div>
+            <b>Nenhuma opção carregada ainda.</b>
+            <div class="mini">Faça o upload e clique em “Buscar opções”.</div>
+          </div>
+        </div>
+      `;
+      log("Reset feito.");
+    }
+
+    function normalizeOptionItem(item) {
+      if (item === null || item === undefined) return { value: "", label: "" };
+      if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+        return { value: String(item), label: String(item) };
+      }
+      if (typeof item === "object") {
+        if ("value" in item && "label" in item) return { value: String(item.value), label: String(item.label) };
+        if ("id" in item && "name" in item) return { value: String(item.id), label: String(item.name) };
+        const asText = JSON.stringify(item);
+        return { value: asText, label: asText };
+      }
+      return { value: String(item), label: String(item) };
+    }
+
+    function renderOptions(optionsJson) {
+      optionsArea.innerHTML = "";
+
+      const keys = Object.keys(optionsJson || {});
+      if (!keys.length) {
+        optionsArea.innerHTML = `
+          <div class="empty">
+            <div class="icon">😶</div>
+            <div>
+              <b>API retornou opções vazias.</b>
+              <div class="mini">Se isso estiver errado, me manda um print do Swagger de <code>/faturamento/options</code>.</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "optionGrid";
+
+      keys.forEach((k) => {
+        const v = optionsJson[k];
+
+        const field = document.createElement("div");
+        field.className = "optField";
+
+        const label = document.createElement("label");
+        label.textContent = k;
+        field.appendChild(label);
+
+        // Array -> multi-select
+        if (Array.isArray(v)) {
+          const select = document.createElement("select");
+          select.multiple = true;
+          select.dataset.key = k;
+
+          v.map(normalizeOptionItem).forEach(({ value, label }) => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = label;
+            select.appendChild(opt);
+          });
+
+          select.addEventListener("change", () => {
+            const chosen = Array.from(select.selectedOptions).map(o => o.value);
+            state.selections[k] = chosen;
+          });
+
+          field.appendChild(select);
+
+          const hint = document.createElement("small");
+          hint.textContent = "Selecione 1 ou mais (Ctrl/Shift).";
+          field.appendChild(hint);
+
+          grid.appendChild(field);
+          return;
+        }
+
+        // Primitivo -> input
+        if (["string","number","boolean"].includes(typeof v) || v === null) {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = v === null ? "" : String(v);
+          input.dataset.key = k;
+
+          input.addEventListener("input", () => {
+            state.selections[k] = input.value;
+          });
+
+          field.appendChild(input);
+
+          const hint = document.createElement("small");
+          hint.textContent = "Campo simples retornado pela API.";
+          field.appendChild(hint);
+
+          grid.appendChild(field);
+          return;
+        }
+
+        // Objeto -> input JSON
+        if (typeof v === "object") {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = JSON.stringify(v);
+          input.dataset.key = k;
+
+          input.addEventListener("input", () => {
+            state.selections[k] = input.value;
+          });
+
+          field.appendChild(input);
+
+          const hint = document.createElement("small");
+          hint.textContent = "Objeto complexo (fallback). Se quiser, eu adapto pra ficar bonito.";
+          field.appendChild(hint);
+
+          grid.appendChild(field);
+          return;
+        }
+      });
+
+      const box = document.createElement("div");
+      box.className = "optionsBox";
+      box.appendChild(grid);
+
+      optionsArea.appendChild(box);
+    }
+
+    async function uploadFile() {
+      const f = fileInput.files?.[0];
+      if (!f) {
+        log("Selecione um arquivo antes.");
+        return;
+      }
+
+      btnUpload.disabled = true;
+      try {
+        log("Upload iniciando…", { name: f.name, size: f.size });
+
+        const fd = new FormData();
+        fd.append("file", f);
+
+        const res = await fetchWithTimeout(apiUrl("/upload"), {
+          method: "POST",
+          body: fd,
+        }, 120000);
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          log("Upload FAIL", { status: res.status, data });
+          return;
+        }
+
+        state.upload_id = data.upload_id || data.uploadId || null;
+
+        uploadIdEl.textContent = state.upload_id || "—";
+        uploadNameEl.textContent = data.filename || f.name;
+
+        log("Upload OK", data);
+      } catch (e) {
+        log("Upload ERROR", { error: String(e) });
+      } finally {
+        btnUpload.disabled = false;
+      }
+    }
+
+    async function fetchOptions() {
+      if (!state.upload_id) {
+        log("Você precisa fazer upload primeiro (upload_id está vazio).");
+        return;
+      }
+
+      btnOptions.disabled = true;
+      try {
+        log("Buscando opções…", { upload_id: state.upload_id });
+
+        const url = apiUrl(`/faturamento/options?upload_id=${encodeURIComponent(state.upload_id)}`);
+        const res = await fetchWithTimeout(url, { method: "GET" }, 120000);
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          log("Options FAIL", { status: res.status, data });
+          return;
+        }
+
+        state.options = data;
+        state.selections = {}; // reset
+        renderOptions(data);
+
+        log("Options OK", data);
+      } catch (e) {
+        log("Options ERROR", { error: String(e) });
+      } finally {
+        btnOptions.disabled = false;
+      }
+    }
+
+    function getFileNameFromHeaders(res) {
+      const cd = res.headers.get("content-disposition");
+      if (!cd) return null;
+      const m = /filename\\*?=(?:UTF-8'')?[\"']?([^\"';]+)[\"']?/i.exec(cd);
+      if (!m) return null;
+      try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+    }
+
+    async function gerarRelatorio() {
+      if (!state.upload_id) {
+        log("Sem upload_id. Faça upload primeiro.");
+        return;
+      }
+
+      btnGerar.disabled = true;
+      try {
+        const payload = {
+          upload_id: state.upload_id,
+          ...state.selections,
+        };
+
+        log("Gerando relatório… (POST /faturamento/gerar)", payload);
+
+        const res = await fetchWithTimeout(apiUrl("/faturamento/gerar"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }, 180000);
+
+        const ct = res.headers.get("content-type") || "";
+        if (!res.ok) {
+          const err = await res.text();
+          log("Gerar FAIL", { status: res.status, body: err });
+          return;
+        }
+
+        if (ct.includes("application/json") || ct.includes("text/json")) {
+          const json = await res.json();
+          log("Gerar OK (json)", json);
+
+          const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+          downloadBlob(blob, `relatorio_${Date.now()}.json`);
+          return;
+        }
+
+        const blob = await res.blob();
+        const name = getFileNameFromHeaders(res) || `relatorio_${Date.now()}`;
+        log("Gerar OK (arquivo)", { contentType: ct, filename: name, size: blob.size });
+        downloadBlob(blob, name);
+      } catch (e) {
+        log("Gerar ERROR", { error: String(e) });
+      } finally {
+        btnGerar.disabled = false;
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    (function init() {
+      apiBaseEl.value = DEFAULT_API;
+
+      btnHealth.addEventListener("click", healthCheck);
+      btnUpload.addEventListener("click", uploadFile);
+      btnOptions.addEventListener("click", fetchOptions);
+      btnGerar.addEventListener("click", gerarRelatorio);
+      btnReset.addEventListener("click", resetAll);
+      btnClearLog.addEventListener("click", () => (logEl.textContent = ""));
+
+      openSwagger.addEventListener("click", (e) => {
+        e.preventDefault();
+        const base = (apiBaseEl.value || "").trim().replace(/\/+$/, "");
+        window.open(base + "/docs", "_blank");
+      });
+
+      healthCheck();
+    })();
+  </script>
 </body>
 </html>
