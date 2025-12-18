@@ -9,13 +9,12 @@ import unicodedata
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 
-app = FastAPI(title="Gerador de Relatórios", version="1.0.0")
+app = FastAPI(title="Gerador de Relatórios", version="1.1.0")
 
-# =============== CORS (GitHub Pages / Front estático) ===============
-# Se quiser travar depois, substitua ["*"] pelo teu domínio do GitHub Pages.
+# CORS (GitHub Pages)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # depois você pode trocar pelo teu domínio do pages
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,6 +22,29 @@ app.add_middleware(
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ================== MAPAS DE COLUNAS (ajustáveis) ==================
+COLMAP = {
+    "fornecedor": [
+        "fornecedor", "nm_fornecedor", "nome_fornecedor", "forn", "laboratorio",
+        "fabricante", "industria", "empresa", "emitente", "razao_emitente"
+    ],
+    "filial": [
+        "filial", "unidade", "loja", "cd", "centro_de_distribuicao", "deposito",
+        "estabelecimento", "nm_filial", "nome_filial"
+    ],
+    "data": [
+        "data", "dt", "data_emissao", "dt_emissao", "emissao", "data_nf", "dt_nf",
+        "data_faturamento", "datahora", "data_hora", "dh_emissao"
+    ],
+    # CHIESI (exemplo)
+    "uf": ["uf", "estado"],
+    "cnpj_cli": ["cnpj_cli", "cnpj_cliente", "cnpj", "cpf_cnpj"],
+    "razao_social": ["razao_social", "razao", "cliente", "nm_cliente", "nome_cliente"],
+    "descricao": ["descricao", "descr", "produto", "ds_produto", "descricao_produto"],
+    "qtd_cx": ["qtd_cx", "quantidade_caixas", "qtd", "qtde", "quantidade"],
+    "vlr_caixa": ["vlr_caixa", "valor_caixa", "vlr", "valor", "valor_unitario"],
+}
 
 # ------------------ Helpers ------------------
 def slug(s: str) -> str:
@@ -35,36 +57,10 @@ def slug(s: str) -> str:
     return s
 
 def find_upload_path(upload_id: str) -> str:
-    # procura arquivo salvo como "{upload_id}_{filename}"
     for fname in os.listdir(UPLOAD_DIR):
         if fname.startswith(f"{upload_id}_"):
             return os.path.join(UPLOAD_DIR, fname)
-    raise HTTPException(status_code=404, detail="upload_id não encontrado (arquivo não existe no servidor).")
-
-def read_planilha(path: str) -> pd.DataFrame:
-    ext = os.path.splitext(path)[1].lower()
-
-    try:
-        if ext in [".xlsx", ".xls", ".xlsm"]:
-            df = pd.read_excel(path, engine="openpyxl")
-        elif ext == ".csv":
-            # tenta separar por ; e , automaticamente
-            try:
-                df = pd.read_csv(path, sep=";", dtype=str, low_memory=False)
-                if df.shape[1] == 1:
-                    df = pd.read_csv(path, sep=",", dtype=str, low_memory=False)
-            except Exception:
-                df = pd.read_csv(path, dtype=str, low_memory=False)
-        else:
-            raise HTTPException(status_code=400, detail=f"Extensão não suportada: {ext}")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro lendo planilha: {str(e)}")
-
-    # normaliza colunas
-    df.columns = [slug(c) for c in df.columns]
-    return df
+    raise HTTPException(status_code=404, detail="upload_id não encontrado no servidor.")
 
 def pick_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
     cols = list(df.columns)
@@ -76,7 +72,7 @@ def pick_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
         if cc in cols_set:
             return cc
 
-    # 2) match por "contém" (ex.: fornecedor dentro de fornecedor_nome)
+    # 2) match por "contém" (ex.: fornecedor dentro de nome_fornecedor)
     for c in candidates:
         cc = slug(c)
         if not cc:
@@ -87,19 +83,80 @@ def pick_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
 
     return None
 
+def read_planilha(path: str) -> pd.DataFrame:
+    ext = os.path.splitext(path)[1].lower()
 
-def unique_sorted(df: pd.DataFrame, col: str, limit: int = 400) -> List[str]:
-    if col not in df.columns:
-        return []
-    vals = df[col].dropna().astype(str).map(lambda x: x.strip()).replace("", pd.NA).dropna().unique().tolist()
-    vals = sorted(vals)
-    return vals[:limit]
+    if ext == ".csv":
+        try:
+            df = pd.read_csv(path, sep=";", dtype=str, low_memory=False)
+            if df.shape[1] == 1:
+                df = pd.read_csv(path, sep=",", dtype=str, low_memory=False)
+        except Exception:
+            df = pd.read_csv(path, dtype=str, low_memory=False)
 
-def ensure_date_parts(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    # cria __dt, __ano, __mes, __dia
-    if "__dt" in df.columns:
+        df.columns = [slug(c) for c in df.columns]
+        df.attrs["sheet_name"] = None
         return df
 
+    if ext in [".xlsx", ".xlsm"]:
+        try:
+            xls = pd.ExcelFile(path, engine="openpyxl")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro abrindo Excel: {str(e)}")
+
+        # escolhe a melhor aba lendo só um "sample" (rápido)
+        keywords = []
+        for key in ["fornecedor", "filial", "data", "uf", "cnpj_cli", "razao_social", "descricao"]:
+            keywords.extend([slug(x) for x in COLMAP.get(key, [])])
+        keywords = [k for k in keywords if k]
+
+        best_sheet = None
+        best_score = -1
+
+        for sheet in xls.sheet_names:
+            try:
+                sample = pd.read_excel(xls, sheet_name=sheet, nrows=50)
+                sample.columns = [slug(c) for c in sample.columns]
+                cols = list(sample.columns)
+
+                matches = 0
+                for k in keywords:
+                    # exato ou contém
+                    if k in cols or any(k in c for c in cols):
+                        matches += 1
+
+                # score: prioriza aba com mais "matches" e mais colunas
+                score = matches * 1000 + len(cols)
+                if score > best_score:
+                    best_score = score
+                    best_sheet = sheet
+            except Exception:
+                continue
+
+        # fallback: primeira aba
+        if not best_sheet:
+            best_sheet = xls.sheet_names[0]
+
+        try:
+            df = pd.read_excel(xls, sheet_name=best_sheet)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro lendo aba '{best_sheet}': {str(e)}")
+
+        df.columns = [slug(c) for c in df.columns]
+        df.attrs["sheet_name"] = best_sheet
+        return df
+
+    if ext == ".xls":
+        raise HTTPException(
+            status_code=400,
+            detail="Arquivo .xls (antigo) não suportado aqui. Salve como .xlsx/.xlsm e tente novamente."
+        )
+
+    raise HTTPException(status_code=400, detail=f"Extensão não suportada: {ext}")
+
+def ensure_date_parts(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
+    if "__dt" in df.columns:
+        return df
     dt = pd.to_datetime(df[date_col], errors="coerce", dayfirst=True)
     df = df.copy()
     df["__dt"] = dt
@@ -107,6 +164,18 @@ def ensure_date_parts(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
     df["__mes"] = df["__dt"].dt.month
     df["__dia"] = df["__dt"].dt.day
     return df
+
+def unique_sorted(df: pd.DataFrame, col: str, limit: int = 400) -> List[str]:
+    if col not in df.columns:
+        return []
+    vals = (
+        df[col].dropna().astype(str)
+        .map(lambda x: x.strip())
+        .replace("", pd.NA).dropna()
+        .unique().tolist()
+    )
+    vals = sorted(vals)
+    return vals[:limit]
 
 def first_or_none(v: Any) -> Optional[str]:
     if v is None:
@@ -123,23 +192,8 @@ def list_or_empty(v: Any) -> List[str]:
     s = str(v).strip()
     return [s] if s else []
 
-# ------------------ “Padrões” (templates) ------------------
-# Ajuste os candidatos conforme suas colunas reais na planilha.
-COLMAP = {
-    "fornecedor": ["fornecedor", "nm_fornecedor", "forn", "laboratorio", "lab"],
-    "filial": ["filial", "unidade", "cd", "centro_de_distribuicao", "deposito"],
-    "data": ["data", "data_emissao", "data_faturamento", "dt_emissao", "dt_nf", "datahora"],
-    # CHIESI (exemplo)
-    "uf": ["uf", "estado"],
-    "cnpj_cli": ["cnpj_cli", "cnpj_cliente", "cnpjdo_cliente", "cnpj"],
-    "razao_social": ["razao_social", "razao", "cliente", "nm_cliente"],
-    "descricao": ["descricao", "descr", "produto", "ds_produto"],
-    "qtd_cx": ["qtd_cx", "quantidade_caixas", "qtd", "qtde"],
-    "vlr_caixa": ["vlr_caixa", "valor_caixa", "vlr", "valor"],
-}
-
+# ------------------ Templates ------------------
 def template_default(df: pd.DataFrame, _: Dict[str, Any]) -> pd.DataFrame:
-    # só devolve o que sobrou após filtros
     return df
 
 def template_chiesi(df: pd.DataFrame, _: Dict[str, Any]) -> pd.DataFrame:
@@ -163,7 +217,7 @@ def template_chiesi(df: pd.DataFrame, _: Dict[str, Any]) -> pd.DataFrame:
     if missing:
         raise HTTPException(
             status_code=400,
-            detail=f"CHIESI: colunas não encontradas na planilha: {missing}. Ajuste o COLMAP no main.py.",
+            detail=f"CHIESI: colunas não encontradas: {missing}. Ajuste COLMAP conforme o cabeçalho real."
         )
 
     out = df[[uf, cnpj, razao, desc, qtd, vlr]].copy()
@@ -195,6 +249,24 @@ async def upload_planilha(file: UploadFile = File(...)):
 
     return {"upload_id": upload_id, "filename": filename}
 
+# DEBUG: mostra aba escolhida e colunas detectadas (não expõe dados)
+@app.get("/debug/columns")
+def debug_columns(upload_id: str):
+    path = find_upload_path(upload_id)
+    df = read_planilha(path)
+    fornecedor_col = pick_col(df, COLMAP["fornecedor"])
+    filial_col = pick_col(df, COLMAP["filial"])
+    data_col = pick_col(df, COLMAP["data"])
+    return {
+        "sheet": df.attrs.get("sheet_name"),
+        "columns": df.columns.tolist(),
+        "detected": {
+            "fornecedor": fornecedor_col,
+            "filial": filial_col,
+            "data": data_col,
+        }
+    }
+
 @app.get("/faturamento/options")
 def faturamento_options(upload_id: str):
     path = find_upload_path(upload_id)
@@ -208,7 +280,6 @@ def faturamento_options(upload_id: str):
         df = ensure_date_parts(df, data_col)
 
     options = {
-        # teu front trata arrays como multi-select, então retornamos listas
         "padrao": sorted(list(TEMPLATES.keys())),
         "fornecedor": unique_sorted(df, fornecedor_col) if fornecedor_col else [],
         "filial": unique_sorted(df, filial_col) if filial_col else [],
@@ -216,7 +287,6 @@ def faturamento_options(upload_id: str):
         "mes": sorted([str(int(x)) for x in df["__mes"].dropna().unique().tolist()]) if data_col else [],
         "dia": sorted([str(int(x)) for x in df["__dia"].dropna().unique().tolist()]) if data_col else [],
     }
-
     return options
 
 @app.post("/faturamento/gerar")
@@ -235,7 +305,6 @@ def faturamento_gerar(payload: Dict[str, Any] = Body(...)):
     if data_col:
         df = ensure_date_parts(df, data_col)
 
-    # --- filtros vindos do teu front (arrays)
     padrao = (first_or_none(payload.get("padrao")) or "DEFAULT").upper()
     fornecedores = list_or_empty(payload.get("fornecedor"))
     filiais = list_or_empty(payload.get("filial"))
@@ -245,10 +314,8 @@ def faturamento_gerar(payload: Dict[str, Any] = Body(...)):
 
     if fornecedor_col and fornecedores:
         df = df[df[fornecedor_col].astype(str).isin(fornecedores)]
-
     if filial_col and filiais:
         df = df[df[filial_col].astype(str).isin(filiais)]
-
     if data_col:
         if anos:
             df = df[df["__ano"].astype("Int64").astype(str).isin(anos)]
@@ -260,13 +327,11 @@ def faturamento_gerar(payload: Dict[str, Any] = Body(...)):
     if df.empty:
         raise HTTPException(status_code=400, detail="Nenhum dado após aplicar filtros.")
 
-    # --- aplica template/padrão
     if padrao not in TEMPLATES:
         raise HTTPException(status_code=400, detail=f"Padrão inválido: {padrao}. Use: {list(TEMPLATES.keys())}")
 
     out_df = TEMPLATES[padrao](df, payload)
 
-    # --- devolve arquivo Excel
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         out_df.to_excel(writer, index=False, sheet_name="Relatorio")
@@ -281,4 +346,3 @@ def faturamento_gerar(payload: Dict[str, Any] = Body(...)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
     )
-
