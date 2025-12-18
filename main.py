@@ -1,171 +1,120 @@
-import os
-import uuid
-from io import BytesIO
-from typing import List, Optional
-
-import pandas as pd
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import pandas as pd
+import io
+import uuid
 
-app = FastAPI()
+app = FastAPI(title="Gerador de Relatórios", version="0.1.0")
 
-# ✅ CORS (pra GitHub Pages conseguir chamar o Render)
+# CORS liberado (pra funcionar com GitHub Pages)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # depois a gente restringe pro seu domínio do Pages
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Memória temporária (quando reiniciar o Render, limpa)
+UPLOADS: Dict[str, Dict[str, Any]] = {}
 
-SHEET_FATURAMENTO = "FAT_DADOS"  # pelo seu print, é aqui que estão os dados
-
-# ---------- MODELOS ----------
+# ---- MODELOS ----
 class GerarFaturamentoRequest(BaseModel):
     upload_id: str
-    fornecedor: str               # ex: "CAMBER"
-    laboratorio: str              # valor da coluna "Laboratório"
-    anos: List[int]               # ex: [2024, 2025]
-    dias: Optional[str] = ""      # "1-10" ou "5,12,20" ou vazio
+    fornecedor: str
+    anos: List[int]
+    dias: Optional[str] = ""  # Ex: "1-10" ou "5,12,20"
 
 
-# ---------- FUNÇÕES ----------
-def _upload_path(upload_id: str) -> str:
-    return os.path.join(UPLOAD_DIR, f"{upload_id}.xlsm")
-
-def parse_dias(dias: str) -> Optional[List[int]]:
-    dias = (dias or "").strip()
-    if not dias:
-        return None
-    # formatos: "1-10" ou "5,12,20"
-    if "-" in dias:
-        a, b = dias.split("-", 1)
-        a = int(a.strip())
-        b = int(b.strip())
-        return list(range(min(a, b), max(a, b) + 1))
-    return [int(x.strip()) for x in dias.split(",") if x.strip().isdigit()]
-
-def read_faturamento_df(filepath: str) -> pd.DataFrame:
-    try:
-        df = pd.read_excel(filepath, sheet_name=SHEET_FATURAMENTO, engine="openpyxl")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro lendo a planilha/aba '{SHEET_FATURAMENTO}': {e}")
-
-    # Normaliza nomes de colunas (evita erro por espaços)
-    df.columns = [str(c).strip() for c in df.columns]
-
-    # Confere colunas mínimas
-    needed = ["EMISSAO", "ESTADO", "CNPJ_CLI", "RAZAO_SOCIAL", "DESCRICAO", "QTD_CX", "ANO", "DIA", "Laboratório"]
-    missing = [c for c in needed if c not in df.columns]
-    if missing:
-        raise HTTPException(status_code=400, detail=f"Faltando colunas na FAT_DADOS: {missing}")
-
+# ---- HELPERS ----
+def _normalize_cols(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = [str(c).strip().upper().replace(" ", "_") for c in df.columns]
     return df
 
-def fornecedor_layout(fornecedor: str):
-    f = (fornecedor or "").strip().upper()
+def _find_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+    cols = set(df.columns)
+    for c in candidates:
+        if c in cols:
+            return c
+    return None
 
-    # ✅ PADRÃO CAMBER (você disse: UF, CNPJ_CLI, RAZAO SOCIAL, DESCRIÇÃO, QTD CX, VLR CAIXA)
-    # "VLR_CAIXA": vou usar Custo_CX se existir, senão VL_UNIT
-    if f == "CAMBER":
-        return [
-            ("UF", "ESTADO"),
-            ("CNPJ_CLI", "CNPJ_CLI"),
-            ("RAZAO_SOCIAL", "RAZAO_SOCIAL"),
-            ("DESCRICAO", "DESCRICAO"),
-            ("QTD_CX", "QTD_CX"),
-            ("VLR_CAIXA", "Custo_CX"),  # fallback abaixo se não existir
-        ]
-
-    # Default (pra não quebrar se escolher outro)
-    return [
-        ("EMISSAO", "EMISSAO"),
-        ("CNPJ_CLI", "CNPJ_CLI"),
-        ("RAZAO_SOCIAL", "RAZAO_SOCIAL"),
-        ("ESTADO", "ESTADO"),
-        ("DESCRICAO", "DESCRICAO"),
-        ("QTD_CX", "QTD_CX"),
-        ("VL_UNIT", "VL_UNIT"),
-    ]
+def _parse_dias(dias_str: str) -> Optional[List[int]]:
+    s = (dias_str or "").strip()
+    if not s:
+        return None
+    # aceita "1-10" ou "5,12,20"
+    if "-" in s:
+        a, b = s.split("-", 1)
+        a = int(a.strip()); b = int(b.strip())
+        if a > b:
+            a, b = b, a
+        return list(range(a, b + 1))
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    return [int(p) for p in parts]
 
 
-# ---------- ROTAS ----------
+def _read_excel_bytes(excel_bytes: bytes) -> pd.DataFrame:
+    # tenta ler a primeira aba
+    bio = io.BytesIO(excel_bytes)
+
+    # engine openpyxl lê .xlsx e geralmente lê .xlsm também
+    try:
+        df = pd.read_excel(bio, engine="openpyxl")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Não consegui ler o Excel: {e}")
+
+    df = _normalize_cols(df)
+    return df
+
+
+# ---- ROTAS ----
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith((".xlsx", ".xls", ".xlsm")):
-        raise HTTPException(status_code=400, detail="Envie um arquivo Excel (.xlsx/.xls/.xlsm)")
-
-    upload_id = str(uuid.uuid4())
-    path = _upload_path(upload_id)
-
+    # lê bytes
     content = await file.read()
-    with open(path, "wb") as f:
-        f.write(content)
+    upload_id = str(uuid.uuid4())
+
+    df = _read_excel_bytes(content)
+
+    # tenta achar coluna de data (EMISSAO)
+    col_data = _find_col(df, ["EMISSAO", "DATA", "DATA_EMISSAO", "DT_EMISSAO"])
+    if not col_data:
+        # não bloqueia, mas avisa depois
+        col_data = None
+    else:
+        # converte data
+        df[col_data] = pd.to_datetime(df[col_data], errors="coerce", dayfirst=True)
+
+    UPLOADS[upload_id] = {
+        "filename": file.filename,
+        "df": df,
+        "col_data": col_data,
+    }
 
     return {"upload_id": upload_id, "filename": file.filename}
 
+
 @app.get("/faturamento/options")
 def faturamento_options(upload_id: str):
-    path = _upload_path(upload_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="upload_id não encontrado")
+    if upload_id not in UPLOADS:
+        raise HTTPException(status_code=404, detail="upload_id não encontrado. Faça upload primeiro.")
 
-    df = read_faturamento_df(path)
+    df = UPLOADS[upload_id]["df"]
+    col_data = UPLOADS[upload_id]["col_data"]
 
-    labs = sorted([x for x in df["Laboratório"].dropna().astype(str).unique().tolist() if x.strip()])
-    anos = sorted(df["ANO"].dropna().astype(int).unique().tolist())
+    if not col_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Não encontrei a coluna de data (ex: EMISSAO). Verifique o nome da coluna na planilha.",
+        )
 
-    return {"laboratorios": labs, "anos": anos}
-
-@app.post("/faturamento/gerar")
-def faturamento_gerar(body: GerarFaturamentoRequest):
-    path = _upload_path(body.upload_id)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="upload_id não encontrado")
-
-    df = read_faturamento_df(path)
-
-    # filtros
-    anos = set([int(a) for a in body.anos])
-    dias_list = parse_dias(body.dias)
-
-    df_f = df[
-        (df["Laboratório"].astype(str) == str(body.laboratorio)) &
-        (df["ANO"].astype(int).isin(anos))
-    ].copy()
-
-    if dias_list:
-        df_f = df_f[df_f["DIA"].astype(int).isin(dias_list)].copy()
-
-    if df_f.empty:
-        raise HTTPException(status_code=400, detail="Nenhum dado encontrado com esses filtros")
-
-    # layout fornecedor
-    layout = fornecedor_layout(body.fornecedor)
-
-    # fallback VLR_CAIXA
-    cols = df_f.columns.tolist()
-    out = pd.DataFrame()
-
-    for out_col, src_col in layout:
-        if src_col == "Custo_CX" and "Custo_CX" not in cols:
-            src_col = "VL_UNIT" if "VL_UNIT" in cols else src_col
-        out[out_col] = df_f[src_col] if src_col in cols else ""
-
-    # export xlsx
-    bio = BytesIO()
-    with pd.ExcelWriter(bio, engine="openpyxl") as writer:
-        out.to_excel(writer, index=False, sheet_name="REL_FAT")
-
-    bio.seek(0)
-    filename = f"{body.fornecedor.upper()}_REL_FAT.xlsx"
-
-    return StreamingResponse(
-        bio,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    # anos disponíveis
+    anos = (
+        df[col_data]
+        .dropna()
+        .dt.year
+        .dropna()
+        .astype(int)
+        .unique()
