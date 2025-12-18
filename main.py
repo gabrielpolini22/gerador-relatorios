@@ -67,12 +67,26 @@ def read_planilha(path: str) -> pd.DataFrame:
     return df
 
 def pick_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
-    cols = set(df.columns)
+    cols = list(df.columns)
+    cols_set = set(cols)
+
+    # 1) match exato
     for c in candidates:
         cc = slug(c)
-        if cc in cols:
+        if cc in cols_set:
             return cc
+
+    # 2) match por "contém" (ex.: fornecedor dentro de fornecedor_nome)
+    for c in candidates:
+        cc = slug(c)
+        if not cc:
+            continue
+        for col in cols:
+            if cc in col:
+                return col
+
     return None
+
 
 def unique_sorted(df: pd.DataFrame, col: str, limit: int = 400) -> List[str]:
     if col not in df.columns:
@@ -267,3 +281,4 @@ def faturamento_gerar(payload: Dict[str, Any] = Body(...)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
     )
+
