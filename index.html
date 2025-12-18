@@ -4,62 +4,106 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Gerador de Relatórios</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <main class="container">
+    <header class="topbar">
+      <div>
+        <h1>Gerador de Relatórios</h1>
+        <p>Upload → filtros → gerar.</p>
+      </div>
 
-  <!-- STATUS -->
-  <div class="status-pill">
-    <span id="statusDot" class="dot"></span>
-    <span id="statusText">Checando…</span>
-  </div>
+      <div class="statusPill" id="statusBox" title="Status do backend">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Checando…</span>
+      </div>
+    </header>
 
-  <!-- API BASE -->
-  <div class="row">
-    <label>Backend</label>
-    <input id="apiBase" type="text" placeholder="https://sua-api" />
+    <section class="panel">
+      <div class="row">
+        <div class="field">
+          <label>Backend</label>
+          <input id="apiBase" type="url" spellcheck="false" />
+        </div>
 
-    <button id="btnHealth" type="button">Testar</button>
-    <button id="btnReset" type="button">Reset</button>
-  </div>
+        <div class="actions">
+          <button class="btn ghost" id="btnHealth">Testar</button>
+          <button class="btn ghost" id="btnReset">Reset</button>
+        </div>
+      </div>
+    </section>
 
-  <!-- UPLOAD -->
-  <div class="card">
-    <h3>1) Upload</h3>
+    <section class="grid">
+      <!-- Upload -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>1) Upload</h2>
+          <span class="chip" id="uploadChip">Sem arquivo</span>
+        </div>
 
-    <input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" />
-    <button id="btnUpload" type="button">Enviar</button>
+        <div class="field">
+          <label>Planilha</label>
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.csv" />
+        </div>
 
-    <div class="mini">
-      <div><b>upload_id:</b> <span id="uploadId">—</span></div>
-      <div><b>arquivo:</b> <span id="uploadName">—</span></div>
-    </div>
-  </div>
+        <button class="btn" id="btnUpload">Enviar</button>
 
-  <!-- OPTIONS -->
-  <div class="card">
-    <h3>2) Filtros</h3>
+        <div class="mini">
+          <div class="miniRow">
+            <span>upload_id</span>
+            <code id="uploadId">—</code>
+          </div>
+          <div class="miniRow">
+            <span>arquivo</span>
+            <code id="uploadName">—</code>
+          </div>
+        </div>
+      </section>
 
-    <button id="btnOptions" type="button">Buscar opções</button>
-    <div id="optionsArea"></div>
-  </div>
+      <!-- Opções -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>2) Filtros</h2>
+          <button class="btn ghost" id="btnOptions">Buscar</button>
+        </div>
 
-  <!-- GERAR -->
-  <div class="card">
-    <h3>3) Gerar</h3>
+        <div id="optionsArea" class="optionsArea">
+          <div class="empty">
+            Faça upload e clique em <b>Buscar</b>.
+          </div>
+        </div>
+      </section>
 
-    <button id="btnGerar" type="button">Gerar & Baixar</button>
-  </div>
+      <!-- Gerar -->
+      <section class="card">
+        <div class="cardHead">
+          <h2>3) Gerar</h2>
+          <button class="btn" id="btnGerar">Gerar & Baixar</button>
+        </div>
 
-  <!-- LOG -->
-  <div class="card">
-    <div class="row">
-      <h3 style="margin:0;">Logs</h3>
-      <button id="btnClearLog" type="button">Limpar</button>
-    </div>
-    <pre id="log"></pre>
-  </div>
+        <details class="details">
+          <summary>Ver logs</summary>
+          <div class="log">
+            <div class="logHead">
+              <span>Logs</span>
+              <button class="btn tiny ghost" id="btnClearLog">Limpar</button>
+            </div>
+            <pre id="log"></pre>
+          </div>
+        </details>
 
-  <!-- IMPORTA SEU JS NO FINAL -->
+        <div class="hint">
+          Dica: seu Swagger fica em <code>/docs</code>.
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      Front estático (GitHub Pages) • Backend (Railway)
+    </footer>
+  </main>
+
   <script src="./app.js"></script>
 </body>
 </html>
