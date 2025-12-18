@@ -1,21 +1,23 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
+import uuid
+import os
 
 app = FastAPI()
 
-# ✅ CORS (por enquanto liberado pra testar)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # depois a gente restringe pro domínio do GitHub Pages
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/upload")
 async def upload_planilha(file: UploadFile = File(...)):
-    return {"filename": file.filename, "status": "Arquivo recebido com sucesso"}
+    upload_id = str(uuid.uuid4())
+
+    filename = file.filename
+    save_path = os.path.join(UPLOAD_DIR, f"{upload_id}_{filename}")
+
+    with open(save_path, "wb") as f:
+        f.write(await file.read())
+
+    return {
+        "upload_id": upload_id,
+        "filename": filename
+    }
